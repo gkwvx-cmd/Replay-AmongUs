@@ -1,0 +1,27 @@
+// Ao iniciar a partida (ex.: ShipStatus.Start)
+var gravador = new GravadorReplaySessao(mapa: "The Skeld");
+gravador.Iniciar();
+
+// A cada tick no FixedUpdate do HudManager ou PlayerControl
+var lista = new List<PosicaoJogador>();
+foreach (var p in PlayerControl.AllPlayerControls)
+{
+    if (p == null || p.Data == null) continue;
+    var pos = p.GetTruePosition();
+    lista.Add(new PosicaoJogador
+    {
+        JogadorId = p.PlayerId,
+        Nome = p.Data.PlayerName,
+        Cor = p.Data.ColorName,
+        X = pos.x,
+        Y = pos.y,
+        Vivo = !p.Data.IsDead
+    });
+}
+gravador.CapturarTick(lista);
+
+// Quando ocorrer uma eliminação (PlayerControl.MurderPlayer)
+gravador.RegistrarEvento("eliminacao", autor: killer.Data.PlayerName, alvo: target.Data.PlayerName);
+
+// Ao acabar a partida (AmongUsClient.OnGameEnd)
+gravador.FinalizarESalvar(Path.Combine(BepInEx.Paths.PluginPath, "GkwvxYtReplays"));
