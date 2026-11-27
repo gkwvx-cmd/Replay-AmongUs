@@ -1,0 +1,48 @@
+# Build e saída (.NET / C#)
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+out/
+publish/
+
+# Binários e pacotes gerados
+*.dll
+*.pdb
+*.exe
+*.nupkg
+*.snupkg
+*.zip
+
+# IDEs (Visual Studio, Rider, VS Code)
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# NuGet e cache
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+packages/
+artifacts/
+TestResults/
+
+# Replays gerados localmente e arquivos do sistema
+*.ndjson
+*.log
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.swp
+*~
