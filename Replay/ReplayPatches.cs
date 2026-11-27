@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -8,7 +10,6 @@ using GkwvxYtMods.Replay;
 
 namespace GkwvxYtMods.Mod
 {
-    [HarmonyPatch]
     public static class ReplayPatches
     {
         private static GravadorReplaySessao? _gravador;
@@ -19,13 +20,46 @@ namespace GkwvxYtMods.Mod
             _log = log;
         }
 
-        [HarmonyPatch(typeof(ShipStatus), nameof(ShipStatus.Start))]
-        [HarmonyPostfix]
-        public static void AoIniciarPartida(ShipStatus __instance)
+        public static void AplicarPatches(Harmony harmony)
+        {
+            AplicarPatchSeguro(harmony, "ShipStatus", "Start", nameof(AoIniciarPartida));
+            AplicarPatchSeguro(harmony, "HudManager", "Update", nameof(AoAtualizarHud));
+            AplicarPatchSeguro(harmony, "PlayerControl", "MurderPlayer", nameof(AoEliminarJogador));
+            AplicarPatchSeguro(harmony, "MeetingHud", "Start", nameof(AoIniciarReuniao));
+            AplicarPatchSeguro(harmony, "AmongUsClient", "OnGameEnd", nameof(AoEncerrarPartida));
+            AplicarPatchSeguro(harmony, "AmongUsClient", "ExitGame", nameof(AoSairDaPartida));
+        }
+
+        private static void AplicarPatchSeguro(Harmony harmony, string nomeTipo, string nomeMetodo, string nomePostfix)
         {
             try
             {
-                string nomeMapa = __instance != null ? __instance.name : "The Skeld";
+                Type? tipoAlvo = AccessTools.TypeByName(nomeTipo);
+                if (tipoAlvo == null)
+                {
+                    _log?.LogWarning($"[gkwvxYT Replay] Tipo '{nomeTipo}' não encontrado no contexto atual.");
+                    return;
+                }
+
+                MethodInfo? metodoAlvo = AccessTools.Method(tipoAlvo, nomeMetodo);
+                MethodInfo? postfix = AccessTools.Method(typeof(ReplayPatches), nomePostfix);
+
+                if (metodoAlvo != null && postfix != null)
+                {
+                    harmony.Patch(metodoAlvo, postfix: new HarmonyMethod(postfix));
+                }
+            }
+            catch (Exception ex)
+            {
+                _log?.LogWarning($"[gkwvxYT Replay] Falha ao aplicar patch em {nomeTipo}.{nomeMetodo}: {ex.Message}");
+            }
+        }
+
+        public static void AoIniciarPartida(object __instance)
+        {
+            try
+            {
+                string nomeMapa = LerPropriedadeOuCampo(__instance, "name") as string ?? "The Skeld";
                 _gravador = new GravadorReplaySessao(mapa: nomeMapa, intervaloMinimoMs: 100);
                 _gravador.Iniciar();
                 _log?.LogInfo($"[gkwvxYT Replay] Gravação iniciada no mapa: {nomeMapa}");
@@ -36,8 +70,6 @@ namespace GkwvxYtMods.Mod
             }
         }
 
-        [HarmonyPatch(typeof(HudManager), nameof(HudManager.Update))]
-        [HarmonyPostfix]
         public static void AoAtualizarHud()
         {
             if (_gravador == null || !_gravador.Gravando)
@@ -45,30 +77,53 @@ namespace GkwvxYtMods.Mod
 
             try
             {
-                var todosJogadores = PlayerControl.AllPlayerControls;
-                if (todosJogadores == null || todosJogadores.Count == 0)
+                Type? tipoPlayerControl = AccessTools.TypeByName("PlayerControl");
+                if (tipoPlayerControl == null)
                     return;
 
-                var lista = new List<PosicaoJogador>(todosJogadores.Count);
-                for (int i = 0; i < todosJogadores.Count; i++)
+                object? allPlayers = AccessTools.Property(tipoPlayerControl, "AllPlayerControls")?.GetValue(null)
+                                  ?? AccessTools.Field(tipoPlayerControl, "AllPlayerControls")?.GetValue(null);
+
+                if (allPlayers is not IEnumerable enumerable)
+                    return;
+
+                var lista = new List<PosicaoJogador>();
+                foreach (object? player in enumerable)
                 {
-                    var p = todosJogadores[i];
-                    if (p == null || p.Data == null)
+                    if (player == null)
                         continue;
 
-                    var pos = p.GetTruePosition();
+                    object? data = LerPropriedadeOuCampo(player, "Data");
+                    if (data == null)
+                        continue;
+
+                    byte id = Convert.ToByte(LerPropriedadeOuCampo(player, "PlayerId") ?? 0);
+                    string nome = LerPropriedadeOuCampo(data, "PlayerName") as string ?? $"Jogador_{id}";
+                    string cor = (LerPropriedadeOuCampo(data, "ColorId") ?? LerPropriedadeOuCampo(data, "DefaultOutfit") ?? "padrao").ToString() ?? "padrao";
+                    bool isDead = Convert.ToBoolean(LerPropriedadeOuCampo(data, "IsDead") ?? false);
+
+                    float x = 0f;
+                    float y = 0f;
+                    object? pos = InvocarMetodoSemParametros(player, "GetTruePosition");
+                    if (pos != null)
+                    {
+                        x = Convert.ToSingle(LerPropriedadeOuCampo(pos, "x") ?? 0f);
+                        y = Convert.ToSingle(LerPropriedadeOuCampo(pos, "y") ?? 0f);
+                    }
+
                     lista.Add(new PosicaoJogador
                     {
-                        JogadorId = p.PlayerId,
-                        Nome = p.Data.PlayerName ?? $"Jogador_{p.PlayerId}",
-                        Cor = p.Data.ColorId.ToString(),
-                        X = pos.x,
-                        Y = pos.y,
-                        Vivo = !p.Data.IsDead
+                        JogadorId = id,
+                        Nome = nome,
+                        Cor = cor,
+                        X = x,
+                        Y = y,
+                        Vivo = !isDead
                     });
                 }
 
-                _gravador.CapturarTick(lista);
+                if (lista.Count > 0)
+                    _gravador.CapturarTick(lista);
             }
             catch (Exception ex)
             {
@@ -76,17 +131,18 @@ namespace GkwvxYtMods.Mod
             }
         }
 
-        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.MurderPlayer))]
-        [HarmonyPostfix]
-        public static void AoEliminarJogador(PlayerControl __instance, PlayerControl target)
+        public static void AoEliminarJogador(object __instance, object? target)
         {
             if (_gravador == null || !_gravador.Gravando)
                 return;
 
             try
             {
-                string autor = __instance?.Data?.PlayerName ?? "Desconhecido";
-                string alvo = target?.Data?.PlayerName ?? "Desconhecido";
+                object? autorData = LerPropriedadeOuCampo(__instance, "Data");
+                object? alvoData = target != null ? LerPropriedadeOuCampo(target, "Data") : null;
+
+                string autor = LerPropriedadeOuCampo(autorData, "PlayerName") as string ?? "Desconhecido";
+                string alvo = LerPropriedadeOuCampo(alvoData, "PlayerName") as string ?? "Desconhecido";
                 _gravador.RegistrarEvento("eliminacao", autor: autor, alvo: alvo);
             }
             catch (Exception ex)
@@ -95,8 +151,6 @@ namespace GkwvxYtMods.Mod
             }
         }
 
-        [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.Start))]
-        [HarmonyPostfix]
         public static void AoIniciarReuniao()
         {
             if (_gravador == null || !_gravador.Gravando)
@@ -105,15 +159,11 @@ namespace GkwvxYtMods.Mod
             _gravador.RegistrarEvento("reuniao_emergencia", detalhe: "Reunião iniciada");
         }
 
-        [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.OnGameEnd))]
-        [HarmonyPostfix]
         public static void AoEncerrarPartida()
         {
             SalvarSeEstiverGravando("fim_partida");
         }
 
-        [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.ExitGame))]
-        [HarmonyPostfix]
         public static void AoSairDaPartida()
         {
             SalvarSeEstiverGravando("saida_partida");
@@ -139,6 +189,32 @@ namespace GkwvxYtMods.Mod
             {
                 _gravador = null;
             }
+        }
+
+        private static object? LerPropriedadeOuCampo(object? obj, string nome)
+        {
+            if (obj == null)
+                return null;
+
+            Type t = obj.GetType();
+            PropertyInfo? prop = AccessTools.Property(t, nome);
+            if (prop != null)
+                return prop.GetValue(obj);
+
+            FieldInfo? field = AccessTools.Field(t, nome);
+            if (field != null)
+                return field.GetValue(obj);
+
+            return null;
+        }
+
+        private static object? InvocarMetodoSemParametros(object? obj, string nomeMetodo)
+        {
+            if (obj == null)
+                return null;
+
+            MethodInfo? metodo = AccessTools.Method(obj.GetType(), nomeMetodo, Type.EmptyTypes);
+            return metodo?.Invoke(obj, null);
         }
     }
 }
