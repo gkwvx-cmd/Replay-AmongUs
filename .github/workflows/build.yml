@@ -1,4 +1,4 @@
-name: Build Mod Among Us
+name: Build e Testes gkwvxYT Replay
 
 on:
   push:
@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar código do repositório
+      - name: Baixar código
         uses: actions/checkout@v4
 
       - name: Configurar .NET 6.0
@@ -18,14 +18,19 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
-      - name: Restaurar pacotes do BepInEx e Among Us
-        run: dotnet restore GkwvxYtAmongUsReplay.csproj
+      - name: Restaurar e testar visualizador offline
+        run: |
+          dotnet restore src/GkwvxYtReplay.csproj
+          dotnet build src/GkwvxYtReplay.csproj -c Release --no-restore
+          dotnet test tests/GkwvxYtReplay.Tests.csproj -c Release
 
-      - name: Compilar DLL do Mod
-        run: dotnet build GkwvxYtAmongUsReplay.csproj -c Release --no-restore
+      - name: Restaurar e compilar DLL do Mod Among Us
+        run: |
+          dotnet restore mod/GkwvxYtAmongUsReplay.csproj
+          dotnet build mod/GkwvxYtAmongUsReplay.csproj -c Release --no-restore
 
-      - name: Disponibilizar DLL para download
+      - name: Disponibilizar DLL do Mod para download
         uses: actions/upload-artifact@v4
         with:
           name: GkwvxYtAmongUsReplay-DLL
-          path: bin/Release/net6.0/GkwvxYtAmongUsReplay.dll
+          path: mod/bin/Release/net6.0/GkwvxYtAmongUsReplay.dll
