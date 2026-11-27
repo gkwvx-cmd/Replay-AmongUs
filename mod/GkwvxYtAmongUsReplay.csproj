@@ -22,6 +22,10 @@
     <Compile Include="..\src\ModelosReplay.cs" Link="Replay\ModelosReplay.cs" />
     <Compile Include="..\src\NdjsonReplayStorage.cs" Link="Replay\NdjsonReplayStorage.cs" />
     <Compile Include="..\src\GravadorReplaySessao.cs" Link="Replay\GravadorReplaySessao.cs" />
+    <Compile Include="..\src\Plugin.cs" Link="Plugin.cs" />
+    <!-- Se estiver em src/Replay/ReplayPatches.cs, use a linha abaixo: -->
+    <Compile Include="..\src\Replay\ReplayPatches.cs" Link="Replay\ReplayPatches.cs" />
+    <!-- (Se a pasta Replay estiver na raiz do repo, troque acima por: ..\Replay\ReplayPatches.cs) -->
   </ItemGroup>
 
 </Project>
