@@ -8,8 +8,33 @@ namespace GkwvxYtMods.Replay
     {
         public static void Main(string[] args)
         {
-            string caminho = args.Length > 0
-                ? args[0]
+            string? caminhoArg = null;
+            string? filtroJogador = null;
+            bool apenasEventos = false;
+            bool apenasEstatisticas = false;
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                switch (args[i])
+                {
+                    case "--jogador" when i + 1 < args.Length:
+                        filtroJogador = args[++i];
+                        break;
+                    case "--eventos":
+                        apenasEventos = true;
+                        break;
+                    case "--resumo":
+                        apenasEstatisticas = true;
+                        break;
+                    default:
+                        if (!args[i].StartsWith("--"))
+                            caminhoArg = args[i];
+                        break;
+                }
+            }
+
+            string caminho = !string.IsNullOrWhiteSpace(caminhoArg)
+                ? caminhoArg
                 : Path.Combine(AppContext.BaseDirectory, "exemplo_gkwvxyt.ndjson");
 
             if (!File.Exists(caminho))
@@ -20,7 +45,7 @@ namespace GkwvxYtMods.Replay
             }
 
             var carregado = NdjsonReplayStorage.Carregar(caminho);
-            VisualizadorReplay.ExibirResumo(carregado);
+            VisualizadorReplay.ExibirResumo(carregado, filtroJogador, apenasEventos, apenasEstatisticas);
         }
 
         public static FilmeReplay CriarPartidaSintetica()
