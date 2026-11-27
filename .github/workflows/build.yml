@@ -1,31 +1,31 @@
-name: Build e Testes (.NET)
+name: Build Mod Among Us
 
 on:
   push:
-    branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do repositório
+      - name: Baixar código do repositório
         uses: actions/checkout@v4
 
-      - name: Configurar .NET SDK 6.0
+      - name: Configurar .NET 6.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "6.0.x"
+          dotnet-version: '6.0.x'
 
-      - name: Restaurar dependências
-        run: dotnet restore src/GkwvxYtReplay.csproj
+      - name: Restaurar pacotes do BepInEx e Among Us
+        run: dotnet restore GkwvxYtAmongUsReplay.csproj
 
-      - name: Compilar projeto principal (Release)
-        run: dotnet build src/GkwvxYtReplay.csproj -c Release --no-restore
+      - name: Compilar DLL do Mod
+        run: dotnet build GkwvxYtAmongUsReplay.csproj -c Release --no-restore
 
-      - name: Executar testes unitários NDJSON
-        if: hashFiles('tests/GkwvxYtReplay.Tests.csproj') != ''
-        run: dotnet test tests/GkwvxYtReplay.Tests.csproj -c Release
+      - name: Disponibilizar DLL para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: GkwvxYtAmongUsReplay-DLL
+          path: bin/Release/net6.0/GkwvxYtAmongUsReplay.dll
