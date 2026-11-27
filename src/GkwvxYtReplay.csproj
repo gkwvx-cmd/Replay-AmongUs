@@ -1,12 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <AssemblyName>GkwvxYtReplay</AssemblyName>
-    <RootNamespace>GkwvxYtMods.Replay</RootNamespace>
+    <AssemblyName>GkwvxYtAmongUsReplay</AssemblyName>
+    <RootNamespace>GkwvxYtMods.Mod</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.*" IncludeAssets="compile" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Aponte para a pasta onde você guarda as DLLs do jogo / interop (ex.: libs/) -->
+    <Reference Include="libs\*.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
 
 </Project>
