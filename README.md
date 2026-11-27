@@ -51,3 +51,15 @@ via reflexão (AccessTools) para capturar início, movimentação, eliminações
 ​Visualizador offline: dotnet run --project src/GkwvxYtReplay.csproj
 ​Build do mod: dotnet build mod/GkwvxYtAmongUsReplay.csproj -c Release
 ​Exemplo Prático em NDJSON
+
+{"tipo":"metadados","sessaoId":"gkwvxyt-20261127-001","mapa":"The Skeld","versaoSchema":1,"iniciadoEmUtc":"2026-11-27T16:30:00Z"}
+{"tipo":"frame","timestampMs":0,"jogadores":[{"jogadorId":1,"nome":"gkwvxYT","cor":"branco","x":-1.2,"y":2.4,"vivo":true},{"jogadorId":2,"nome":"Tripulante02","cor":"azul","x":0.5,"y":1.1,"vivo":true}]}
+{"tipo":"frame","timestampMs":100,"jogadores":[{"jogadorId":1,"nome":"gkwvxYT","cor":"branco","x":-1.5,"y":2.1,"vivo":true},{"jogadorId":2,"nome":"Tripulante02","cor":"azul","x":0.8,"y":0.9,"vivo":true}]}
+{"tipo":"evento","timestampMs":250,"acao":"eliminacao","autor":"gkwvxYT","alvo":"Tripulante02","detalhe":"Eliminação registrada na partida"}
+{"tipo":"evento","timestampMs":400,"acao":"reuniao_emergencia","autor":"gkwvxYT","alvo":null,"detalhe":"Reunião iniciada"}
+{"tipo":"encerramento","timestampMs":500,"motivo":"fim_partida","totalFrames":2,"totalEventos":2}
+
+# Licença e Segurança
+
+​Distribuído sob licença GNU GPL v3.
+​Não envie DLLs proprietárias do jogo, arquivos temporários, tokens ou dados sensíveis para o repositório.
