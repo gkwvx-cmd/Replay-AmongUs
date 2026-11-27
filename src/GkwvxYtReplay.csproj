@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <Compile Remove="Plugin.cs" />
-    <Compile Remove="ReplayPatches.cs" />
+    <Compile Remove="Replay\ReplayPatches.cs" />
   </ItemGroup>
 
 </Project>
