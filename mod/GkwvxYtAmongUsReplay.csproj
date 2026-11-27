@@ -15,7 +15,13 @@
 
   <ItemGroup>
     <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.697" IncludeAssets="compile" />
-    <PackageReference Include="AmongUs.GameLibs.Steam" Version="2024.10.29" PrivateAssets="all" />
+    <PackageReference Include="AmongUs.GameLibs.Steam" Version="2024.10.29" GeneratePathProperty="true" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(PkgAmongUs_GameLibs_Steam)\lib\**\*.dll">
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
