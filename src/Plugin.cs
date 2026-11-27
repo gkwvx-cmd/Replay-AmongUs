@@ -9,8 +9,9 @@ namespace GkwvxYtMods.Mod
     {
         public override void Load()
         {
+            var harmony = new Harmony("br.gkwvxyt.amongus.replay");
             ReplayPatches.Inicializar(Log);
-            Harmony.CreateAndPatchAll(typeof(ReplayPatches));
+            ReplayPatches.AplicarPatches(harmony);
         }
     }
 }
