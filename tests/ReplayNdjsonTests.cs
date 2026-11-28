@@ -5,7 +5,7 @@ using Xunit;
 
 namespace GkwvxYtReplay.Tests;
 
-public sealed class NdjsonReplayReaderTests
+public sealed class ReplayNdjsonTests
 {
     private static string CreateTempDir()
     {
