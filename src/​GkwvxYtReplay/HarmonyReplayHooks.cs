@@ -35,8 +35,6 @@ public sealed class HarmonyReplayHooks : IDisposable
     {
         int installed = 0;
 
-        // Exemplos de alvos comuns em partidas/reuniões/eliminações via reflexão
-        // Ajuste ou adicione nomes conforme os métodos encontrados no assembly do jogo
         installed += TryPatchMethod(
             typeNames: new[] { "ShipStatus", "InnerNet.InnerNetClient" },
             methodNames: new[] { "Begin", "Start" },
@@ -154,7 +152,6 @@ public sealed class HarmonyReplayHooks : IDisposable
         string sourceName = __instance?.GetType().Name ?? "MatchController";
         string matchId = TryReadStringMember(__instance, "GameId", "MatchId", "RoomId") ?? "match";
 
-        // Conecta ao session ativo se houver um registrado via HarmonyReplayHooks.ActiveSession
         ActiveSession?.StartMatch(matchId, new Dictionary<string, string>
         {
             ["source"] = sourceName
@@ -172,15 +169,15 @@ public sealed class HarmonyReplayHooks : IDisposable
         string killer = TryReadPlayerName(__instance) ?? "unknown_killer";
         string? targetName = null;
 
-        if (__args is { Length: > 0 } && __args[0] is not null)
+        if (__args is { Length: > 0 } && __args[0] is object targetObj)
         {
-            targetName = TryReadPlayerName(__args[0]) ?? __args[0].GetType().Name;
+            targetName = TryReadPlayerName(targetObj) ?? targetObj.GetType().Name;
         }
 
         var meta = new Dictionary<string, string>();
         if (!string.IsNullOrWhiteSpace(targetName))
         {
-            meta["target"] = targetName!;
+            meta["target"] = targetName;
         }
 
         ActiveSession?.RecordEvent("player_murder", killer, $"Eliminação registrada: {killer} -> {targetName ?? "desconhecido"}", meta);
@@ -193,7 +190,6 @@ public sealed class HarmonyReplayHooks : IDisposable
             return null;
         }
 
-        // Tenta ler propriedades/campos comuns ou um objeto Data/PlayerData aninhado
         string? direct = TryReadStringMember(instance, "PlayerName", "Name", "Nickname");
         if (!string.IsNullOrWhiteSpace(direct))
         {
@@ -257,7 +253,6 @@ public sealed class HarmonyReplayHooks : IDisposable
         return null;
     }
 
-    // Referência estática leve usada pelos métodos static de postfix do HarmonyX
     public static ReplayMatchSession? ActiveSession { get; set; }
 
     public void Dispose()
