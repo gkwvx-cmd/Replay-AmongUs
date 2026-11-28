@@ -297,4 +297,32 @@ public sealed class HarmonyReplayHooks : IDisposable
             {
                 try
                 {
-                    return field.GetValue
+                    return field.GetValue(instance);
+                }
+                catch
+                {
+                    // Ignora falhas de acesso em runtime IL2CPP
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static ReplayMatchSession? ActiveSession { get; set; }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _harmony.UnpatchSelf();
+        if (ReferenceEquals(ActiveSession, _session))
+        {
+            ActiveSession = null;
+        }
+    }
+}
