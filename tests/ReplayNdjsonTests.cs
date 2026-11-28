@@ -1,78 +1,82 @@
 using System;
 using System.IO;
-using System.Text;
-using GkwvxYtMods.Replay;
+using System.Linq;
 using Xunit;
 
-namespace GkwvxYtMods.Replay.Tests
+namespace GkwvxYtReplay.Tests;
+
+public sealed class NdjsonReplayReaderTests
 {
-    public class ReplayNdjsonTests
+    private static string CreateTempDir()
     {
-        [Fact]
-        public void SalvarECarregar_PartidaSintetica_PreservaDados()
+        string path = Path.Combine(Path.GetTempPath(), "gkwvxyt_reader_tests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static void CleanupDir(string path)
+    {
+        if (Directory.Exists(path))
         {
-            string arquivoTemp = Path.Combine(Path.GetTempPath(), $"replay_{Guid.NewGuid():N}.ndjson");
-            try
-            {
-                var original = Program.CriarPartidaSintetica();
-                NdjsonReplayStorage.Salvar(arquivoTemp, original);
-
-                var carregado = NdjsonReplayStorage.Carregar(arquivoTemp);
-
-                Assert.Equal("gkwvxyt-demo-001", carregado.Cabecalho.PartidaId);
-                Assert.Equal("gkwvxYT", carregado.Cabecalho.Tema);
-                Assert.Equal(3, carregado.Frames.Count);
-                Assert.Equal("Faxineiro", carregado.Frames[0].Jogadores[0].Nome);
-                Assert.False(carregado.Frames[2].Jogadores[0].Vivo);
-            }
-            finally
-            {
-                if (File.Exists(arquivoTemp))
-                    File.Delete(arquivoTemp);
-            }
+            Directory.Delete(path, recursive: true);
         }
+    }
 
-        [Fact]
-        public void Carregar_QuandoExcedeLimiteDeBytes_LancaExcecao()
+    [Fact]
+    public void Summarize_ReadsRecordedNdjsonAndCountsEventTypes()
+    {
+        string tempDir = CreateTempDir();
+        try
         {
-            string arquivoTemp = Path.Combine(Path.GetTempPath(), $"replay_grande_{Guid.NewGuid():N}.ndjson");
-            try
+            string filePath;
+            using (var recorder = new NdjsonMatchRecorder(tempDir, "summary_match", maxEvents: 50, flushInterval: 1))
             {
-                var filme = Program.CriarPartidaSintetica();
-                NdjsonReplayStorage.Salvar(arquivoTemp, filme);
-
-                Assert.Throws<InvalidOperationException>(() =>
-                    NdjsonReplayStorage.Carregar(arquivoTemp, maxBytes: 120));
+                recorder.TryRecord("match_start", "host", "Início");
+                recorder.TryRecord("player_murder", "impostor", "Kill 1");
+                recorder.TryRecord("player_murder", "impostor", "Kill 2");
+                filePath = recorder.FilePath;
             }
-            finally
+
+            ReplayInspectionSummary summary = NdjsonReplayReader.Summarize(filePath);
+            var events = NdjsonReplayReader.ReadEvents(filePath);
+
+            Assert.Equal(3, summary.TotalEvents);
+            Assert.Equal(0, summary.MalformedLines);
+            Assert.Equal(3, events.Count);
+            Assert.Equal(1, summary.EventsByType["match_start"]);
+            Assert.Equal(2, summary.EventsByType["player_murder"]);
+            Assert.True(summary.DurationMs >= 0);
+        }
+        finally
+        {
+            CleanupDir(tempDir);
+        }
+    }
+
+    [Fact]
+    public void Summarize_SkipsMalformedLinesWhenEnabled()
+    {
+        string tempDir = CreateTempDir();
+        try
+        {
+            string filePath = Path.Combine(tempDir, "corrupted.ndjson");
+            File.WriteAllLines(filePath, new[]
             {
-                if (File.Exists(arquivoTemp))
-                    File.Delete(arquivoTemp);
-            }
+                "{\"TimestampMs\":1000,\"EventType\":\"match_start\",\"Actor\":\"host\",\"Summary\":\"ok\"}",
+                "{linha_quebrada_json",
+                "{\"TimestampMs\":2500,\"EventType\":\"match_end\",\"Actor\":\"host\",\"Summary\":\"fim\"}"
+            });
+
+            ReplayInspectionSummary summary = NdjsonReplayReader.Summarize(filePath, skipMalformedLines: true);
+
+            Assert.Equal(2, summary.TotalEvents);
+            Assert.Equal(1, summary.MalformedLines);
+            Assert.Equal(1500, summary.DurationMs);
+            Assert.Equal(2, NdjsonReplayReader.ReadEvents(filePath, skipMalformedLines: true).Count);
         }
-
-        [Fact]
-        public void CarregarDeStream_SemCabecalhoPrimeiro_LancaInvalidDataException()
+        finally
         {
-            string ndjsonInvalido = "{\"tipo\":\"frame\",\"tMs\":100,\"jogadores\":[],\"eventos\":[]}\n";
-            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(ndjsonInvalido));
-
-            Assert.Throws<InvalidDataException>(() =>
-                NdjsonReplayStorage.CarregarDeStream(ms));
-        }
-
-        [Fact]
-        public void CarregarDeStream_TimestampForaDeOrdem_LancaInvalidDataException()
-        {
-            string ndjsonForaDeOrdem =
-                "{\"tipo\":\"cabecalho\",\"versao\":3,\"origem\":\"gkwvxyt-br\",\"tema\":\"gkwvxYT\",\"partidaId\":\"p1\",\"mapa\":\"Polus\"}\n" +
-                "{\"tipo\":\"frame\",\"tMs\":500,\"jogadores\":[],\"eventos\":[]}\n" +
-                "{\"tipo\":\"frame\",\"tMs\":300,\"jogadores\":[],\"eventos\":[]}\n";
-
-            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(ndjsonForaDeOrdem));
-
-            Assert.Throws<InvalidDataException>(() =>
-                NdjsonReplayStorage.CarregarDeStream(ms));
+            CleanupDir(tempDir);
         }
     }
 }
