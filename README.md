@@ -55,3 +55,19 @@ via reflexão (AccessTools) para capturar início, movimentação, eliminações
 
 ​Distribuído sob licença GNU GPL v3.
 ​Não envie DLLs proprietárias do jogo, arquivos temporários, tokens ou dados sensíveis para o repositório.
+
+# CRÉDITOS 
+
+Produzido por gkwvxYT.
+Licença: GNU GPL v3
+Fonte: BepInEx
+Apoio: Internet
+
+
+©️ gkwvxYT Replay Mod Among Us
+VOCÊ! DESENVOLVEDOR QUE USAR ESTA BASE. POR FAVOR. COLOCAR OS DEVIDOS CRÉDITOS DO CRIADOR.
+
+OBRIGADO!
+
+Este programa é software livre: você pode modificar ou redistribuir sob os termos da GNU General Public License versão 3.0.
+
