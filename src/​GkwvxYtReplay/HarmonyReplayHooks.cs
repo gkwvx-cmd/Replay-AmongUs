@@ -53,6 +53,12 @@ public sealed class HarmonyReplayHooks : IDisposable
             postfixMethod: AccessTools.Method(typeof(HarmonyReplayHooks), nameof(OnMurderPlayerPostfix))
         );
 
+        installed += TryPatchMethod(
+            typeNames: new[] { "EndGameManager", "AmongUsClient", "InnerNet.InnerNetClient" },
+            methodNames: new[] { "Start", "OnGameEnd", "OnDisconnected" },
+            postfixMethod: AccessTools.Method(typeof(HarmonyReplayHooks), nameof(OnMatchEndedPostfix))
+        );
+
         _logInfo?.Invoke($"[HarmonyReplayHooks] Hooks instalados com sucesso: {installed}");
         return installed;
     }
@@ -94,11 +100,31 @@ public sealed class HarmonyReplayHooks : IDisposable
 
     public static Type? FindTypeByCandidates(IEnumerable<string> candidateNames)
     {
-        var candidates = new HashSet<string>(candidateNames, StringComparer.Ordinal);
+        if (candidateNames is null)
+        {
+            return null;
+        }
+
+        var candidates = new HashSet<string>(
+            candidateNames.Where(name => !string.IsNullOrWhiteSpace(name)),
+            StringComparer.Ordinal
+        );
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
         Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
         foreach (Assembly asm in assemblies)
         {
+            string? asmName = asm.GetName().Name;
+            if (IsSystemAssembly(asmName))
+            {
+                continue;
+            }
+
             Type[] types;
             try
             {
@@ -115,12 +141,7 @@ public sealed class HarmonyReplayHooks : IDisposable
 
             foreach (Type type in types)
             {
-                if (type is null)
-                {
-                    continue;
-                }
-
-                if (candidates.Contains(type.Name) || (!string.IsNullOrEmpty(type.FullName) && candidates.Contains(type.FullName!)))
+                if (candidates.Contains(type.Name) || (!string.IsNullOrEmpty(type.FullName) && candidates.Contains(type.FullName)))
                 {
                     return type;
                 }
@@ -130,13 +151,37 @@ public sealed class HarmonyReplayHooks : IDisposable
         return null;
     }
 
+    private static bool IsSystemAssembly(string? assemblyName)
+    {
+        if (string.IsNullOrEmpty(assemblyName))
+        {
+            return false;
+        }
+
+        return assemblyName.Equals("System", StringComparison.Ordinal)
+            || assemblyName.StartsWith("System.", StringComparison.Ordinal)
+            || assemblyName.StartsWith("Microsoft.", StringComparison.Ordinal)
+            || assemblyName.Equals("netstandard", StringComparison.Ordinal)
+            || assemblyName.Equals("mscorlib", StringComparison.Ordinal);
+    }
+
     public static MethodInfo? FindMethodByCandidates(Type targetType, IEnumerable<string> methodNames)
     {
+        if (targetType is null || methodNames is null)
+        {
+            return null;
+        }
+
         BindingFlags flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         MethodInfo[] methods = targetType.GetMethods(flags);
 
         foreach (string candidate in methodNames)
         {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
             MethodInfo? match = methods.FirstOrDefault(m => string.Equals(m.Name, candidate, StringComparison.Ordinal));
             if (match is not null)
             {
@@ -183,6 +228,12 @@ public sealed class HarmonyReplayHooks : IDisposable
         ActiveSession?.RecordEvent("player_murder", killer, $"Eliminação registrada: {killer} -> {targetName ?? "desconhecido"}", meta);
     }
 
+    private static void OnMatchEndedPostfix(object? __instance)
+    {
+        string reason = __instance?.GetType().Name ?? "match_end";
+        ActiveSession?.StopMatch(reason);
+    }
+
     public static string? TryReadPlayerName(object? instance)
     {
         if (instance is null)
@@ -213,7 +264,7 @@ public sealed class HarmonyReplayHooks : IDisposable
 
     public static object? TryReadObjectMember(object? instance, params string[] memberNames)
     {
-        if (instance is null)
+        if (instance is null || memberNames is null)
         {
             return null;
         }
@@ -221,52 +272,4 @@ public sealed class HarmonyReplayHooks : IDisposable
         Type type = instance.GetType();
         BindingFlags flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
-        foreach (string name in memberNames)
-        {
-            PropertyInfo? prop = type.GetProperty(name, flags);
-            if (prop is not null && prop.GetIndexParameters().Length == 0)
-            {
-                try
-                {
-                    return prop.GetValue(instance);
-                }
-                catch
-                {
-                    // Ignora falhas de acesso em runtime IL2CPP
-                }
-            }
-
-            FieldInfo? field = type.GetField(name, flags);
-            if (field is not null)
-            {
-                try
-                {
-                    return field.GetValue(instance);
-                }
-                catch
-                {
-                    // Ignora falhas de acesso em runtime IL2CPP
-                }
-            }
-        }
-
-        return null;
-    }
-
-    public static ReplayMatchSession? ActiveSession { get; set; }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _harmony.UnpatchSelf();
-        if (ReferenceEquals(ActiveSession, _session))
-        {
-            ActiveSession = null;
-        }
-    }
-}
+        foreach
